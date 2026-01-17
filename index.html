@@ -3224,162 +3224,120 @@
         </div>
     </div>
 
-    <!-- JavaScript -->
-    <script>
-        // QILAN INTERNATIONAL - SUPABASE EDITION
-        const App = {
-            // Supabase Configuration
-            supabaseUrl: 'https://jkbxmxubiesvwgrzsrnt.supabase.co',
-            supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImprYnhteHViaWVzdndncnpzcm50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2MTQxMTksImV4cCI6MjA4NDE5MDExOX0.mRfEzTv6BiktG0Xir5JMaXsvk3_LRk12o2hMCCg_I-4',
-            supabase: null,
+   <script>
+    // QILAN INTERNATIONAL - SUPABASE EDITION
+    const App = {
+        // Supabase Configuration
+        supabaseUrl: 'https://jkbxmxubiesvwgrzsrnt.supabase.co',
+        supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImprYnhteHViaWVzdndncnpzcm50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2MTQxMTksImV4cCI6MjA4NDE5MDExOX0.mRfEzTv6BiktG0Xir5JMaXsvk3_LRk12o2hMCCg_I-4',
+        supabase: null,
+        
+        // Admin Configuration
+        adminEmail: 'admin@qilan.rw',
+        adminPassword: 'Qilan2024!',
+        
+        // App State
+        products: [],
+        currentFilter: 'all',
+        submissions: [],
+        dataLoaded: false,
+
+        // Initialize Supabase
+        initSupabase: function() {
+            try {
+                this.supabase = window.supabase.createClient(this.supabaseUrl, this.supabaseKey);
+                console.log('✅ Supabase initialized');
+                return true;
+            } catch (error) {
+                console.error('❌ Failed to initialize Supabase:', error);
+                this.showMessage('Database connection failed. Using demo mode.', 'warning');
+                return false;
+            }
+        },
+
+        // Initialize App
+        init: async function() {
+            console.log('🚀 Qilan International v2.0 - Initializing...');
             
-            // Admin Configuration
-            adminEmail: 'admin@qilan.rw',
-            adminPassword: 'Qilan2024!',
-            
-            // App State
-            products: [],
-            currentFilter: 'all',
-            submissions: [],
-            dataLoaded: false,
-            loadTimeout: null,
+            // Hide preloader after 3 seconds max
+            setTimeout(() => {
+                this.hidePreloader();
+            }, 3000);
 
             // Initialize Supabase
-            initSupabase: function() {
-                this.supabase = window.supabase.createClient(this.supabaseUrl, this.supabaseKey);
-                console.log('Supabase initialized');
-            },
+            if (!this.initSupabase()) {
+                this.setupEventListeners();
+                return;
+            }
 
-            // Initialize App
-            init: async function() {
-                console.log('Qilan International v2.0 - Initializing with Supabase');
+            try {
+                // Load initial data
+                await Promise.all([
+                    this.loadContactInfo(),
+                    this.loadProducts()
+                ]);
                 
-                // Initialize Supabase
-                this.initSupabase();
+                this.dataLoaded = true;
+                this.setupEventListeners();
+                this.setupAnimations();
+                this.setupScroll();
                 
-                // Set a maximum timeout for preloader (5 seconds)
-                this.loadTimeout = setTimeout(() => {
-                    console.warn('Preloader timeout - forcing hide');
-                    this.hidePreloader();
-                    this.showMessage('Website loaded. Some data may still be loading.', 'info');
-                }, 5000);
+                console.log('✅ App initialized successfully');
+                this.hidePreloader();
+                
+            } catch (error) {
+                console.error('❌ Error initializing app:', error);
+                this.hidePreloader();
+                this.showMessage('Loaded with limited functionality. Some features may not work.', 'warning');
+            }
+        },
 
-                try {
-                    // Load data from Supabase
-                    await this.loadData();
-                    this.dataLoaded = true;
-                    
-                    // Set up event listeners
-                    this.setupEventListeners();
-                    
-                    // Set up intersection observer for animations
-                    this.setupAnimations();
-                    
-                    // Initialize scroll behavior
-                    this.setupScroll();
-                    
-                    console.log('App initialized successfully');
-                    
-                    // Hide preloader once everything is ready
-                    this.hidePreloader();
-                    if (this.loadTimeout) {
-                        clearTimeout(this.loadTimeout);
-                        this.loadTimeout = null;
-                    }
-                } catch (error) {
-                    console.error('Error initializing app:', error);
-                    // Still hide preloader even if there's an error
-                    this.hidePreloader();
-                    if (this.loadTimeout) {
-                        clearTimeout(this.loadTimeout);
-                        this.loadTimeout = null;
-                    }
-                    this.showMessage('Website loaded with some errors. Please refresh.', 'error');
+        // Hide preloader
+        hidePreloader: function() {
+            const preloader = document.getElementById('preloader');
+            if (preloader) {
+                preloader.classList.add('hidden');
+            }
+        },
+
+        // Load contact information
+        loadContactInfo: async function() {
+            try {
+                const { data, error } = await this.supabase
+                    .from('settings')
+                    .select('*')
+                    .eq('key', 'contact_info')
+                    .single();
+                
+                if (error && error.code !== 'PGRST116') {
+                    console.warn('⚠️ Error loading contact info:', error.message);
                 }
-            },
-
-            // Hide preloader
-            hidePreloader: function() {
-                const preloader = document.getElementById('preloader');
-                if (preloader && !preloader.classList.contains('hidden')) {
-                    preloader.classList.add('hidden');
-                    console.log('Preloader hidden');
-                }
-            },
-
-            // Load all data from Supabase
-            loadData: async function() {
-                try {
-                    console.log('Loading data from Supabase...');
-                    
-                    // Load contact info first (fastest)
-                    await this.loadContactInfo();
-                    
-                    // Load products
-                    await this.loadProducts();
-                    
-                    // Load submissions (admin only if logged in)
-                    if (localStorage.getItem('qilan_admin_logged_in') === 'true') {
-                        await this.loadSubmissions();
-                    }
-                    
-                    console.log('Data loaded successfully');
-                } catch (error) {
-                    console.error('Error loading data:', error);
-                    // Don't throw here, just log and continue
-                }
-            },
-
-            // Load contact information from Supabase
-            loadContactInfo: async function() {
-                try {
-                    const { data, error } = await this.supabase
-                        .from('settings')
-                        .select('*')
-                        .eq('key', 'contact_info')
-                        .single();
-                    
-                    if (error && error.code !== 'PGRST116') {
-                        console.warn('Error loading contact info, using defaults:', error);
-                        this.setDefaultContactInfo();
-                        return;
-                    }
-                    
-                    if (data) {
-                        const contactInfo = JSON.parse(data.value);
-                        this.updateContactDisplay(contactInfo);
-                        
-                        // Update admin form values
-                        if (document.getElementById('adminPhoneDisplay')) {
-                            document.getElementById('adminPhoneDisplay').value = contactInfo.phone || '';
-                            document.getElementById('adminWhatsApp').value = contactInfo.whatsapp || '';
-                            document.getElementById('adminEmailAddr').value = contactInfo.email || '';
-                            document.getElementById('adminLocation').value = contactInfo.location || '';
-                        }
-                    } else {
-                        // No contact info in database, use defaults
-                        this.setDefaultContactInfo();
-                    }
-                } catch (error) {
-                    console.error('Error in loadContactInfo:', error);
-                    this.setDefaultContactInfo();
-                }
-            },
-
-            // Set default contact information
-            setDefaultContactInfo: function() {
-                const defaults = {
+                
+                const contactInfo = data ? JSON.parse(data.value) : {
                     phone: '+250 784 625 038',
                     whatsapp: '250784625038',
                     email: 'info@qilan.rw',
                     location: 'Kigali, Rwanda<br>KG 123 Street, Nyarutarama'
                 };
                 
-                this.updateContactDisplay(defaults);
-            },
+                this.updateContactDisplay(contactInfo);
+                
+                // Update admin form if exists
+                if (document.getElementById('adminPhoneDisplay')) {
+                    document.getElementById('adminPhoneDisplay').value = contactInfo.phone;
+                    document.getElementById('adminWhatsApp').value = contactInfo.whatsapp;
+                    document.getElementById('adminEmailAddr').value = contactInfo.email;
+                    document.getElementById('adminLocation').value = contactInfo.location;
+                }
+                
+            } catch (error) {
+                console.error('Error loading contact info:', error);
+            }
+        },
 
-            // Update contact display
-            updateContactDisplay: function(contactInfo) {
+        // Update contact display
+        updateContactDisplay: function(contactInfo) {
+            try {
                 const phoneLink = document.getElementById('phoneLink');
                 const emailLink = document.getElementById('emailLink');
                 const locationText = document.getElementById('locationText');
@@ -3398,12 +3356,17 @@
                     locationText.innerHTML = contactInfo.location;
                 }
 
-                // Set up WhatsApp actions
+                // Setup WhatsApp
                 this.setupWhatsApp(contactInfo.whatsapp);
-            },
+                
+            } catch (error) {
+                console.error('Error updating contact display:', error);
+            }
+        },
 
-            // Setup WhatsApp functionality
-            setupWhatsApp: function(number) {
+        // Setup WhatsApp functionality
+        setupWhatsApp: function(number) {
+            try {
                 const whatsappActions = document.querySelectorAll('.whatsapp-action');
                 const message = encodeURIComponent("Hello Qilan International! I'm interested in your furniture collection.");
                 const whatsappURL = `https://wa.me/${number}?text=${message}`;
@@ -3412,730 +3375,674 @@
                     btn.href = whatsappURL;
                     btn.target = '_blank';
                 });
-            },
-
-            // Load products from Supabase
-            loadProducts: async function() {
-                try {
-                    const { data, error } = await this.supabase
-                        .from('products')
-                        .select('*')
-                        .order('created_at', { ascending: false });
-                    
-                    if (error) {
-                        console.error('Error loading products:', error);
-                        return;
-                    }
-                    
-                    this.products = data || [];
-                    this.renderProducts();
-                    
-                    // Update statistics
-                    this.updateStatistics();
-                    
-                    console.log(`Loaded ${this.products.length} products`);
-                } catch (error) {
-                    console.error('Error in loadProducts:', error);
-                }
-            },
-
-            // Render products to the grid
-            renderProducts: function() {
-                const grid = document.getElementById('productGrid');
-                if (!grid) return;
-
-                grid.innerHTML = '';
                 
-                const filteredProducts = this.currentFilter === 'all' 
-                    ? this.products 
-                    : this.products.filter(p => p.category === this.currentFilter);
+            } catch (error) {
+                console.error('Error setting up WhatsApp:', error);
+            }
+        },
 
-                if (filteredProducts.length === 0) {
-                    grid.innerHTML = `
-                        <div class="no-products" style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-light);">
-                            <i class="fas fa-box-open" style="font-size: 3rem; margin-bottom: 20px; opacity: 0.3;"></i>
-                            <h3>No products found</h3>
-                            <p>Check back soon for new additions to our collection.</p>
-                        </div>
-                    `;
-                    return;
+        // Load products from Supabase
+        loadProducts: async function() {
+            try {
+                const { data, error } = await this.supabase
+                    .from('products')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    console.error('❌ Error loading products:', error.message);
+                    this.products = this.getDemoProducts();
+                } else {
+                    this.products = data || [];
                 }
+                
+                this.renderProducts();
+                
+            } catch (error) {
+                console.error('❌ Error in loadProducts:', error);
+                this.products = this.getDemoProducts();
+                this.renderProducts();
+            }
+        },
 
-                filteredProducts.forEach((product, index) => {
-                    const productHTML = `
-                        <div class="product-card visible" style="transition-delay: ${index * 0.1}s">
-                            ${product.badge ? `<div class="product-badge">${product.badge}</div>` : ''}
-                            <div class="product-image-wrapper">
-                                <img src="${product.image_url}" alt="${product.name}" class="product-image">
-                                <div class="product-overlay">
-                                    <div class="product-overlay-btns">
-                                        <button class="overlay-btn overlay-btn-primary whatsapp-action">
-                                            <i class="fab fa-whatsapp"></i> Inquire
-                                        </button>
-                                        <button class="overlay-btn overlay-btn-secondary" onclick="App.viewProduct(${product.id})">
-                                            <i class="fas fa-eye"></i> View
-                                        </button>
-                                    </div>
+        // Get demo products (fallback)
+        getDemoProducts: function() {
+            return [
+                {
+                    id: 1,
+                    name: "Luxury Sofa Set",
+                    category: "living",
+                    image_url: "https://i.imgur.com/Y4b8AxE.png",
+                    badge: "New",
+                    description: "Premium fabric sofa set with custom cushions"
+                },
+                {
+                    id: 2,
+                    name: "Executive Desk",
+                    category: "office",
+                    image_url: "https://i.imgur.com/C1sS10u.png",
+                    badge: "Premium",
+                    description: "Solid wood executive desk with leather inlay"
+                }
+            ];
+        },
+
+        // Render products to the grid
+        renderProducts: function() {
+            const grid = document.getElementById('productGrid');
+            if (!grid) return;
+
+            grid.innerHTML = '';
+            
+            const filteredProducts = this.currentFilter === 'all' 
+                ? this.products 
+                : this.products.filter(p => p.category === this.currentFilter);
+
+            if (filteredProducts.length === 0) {
+                grid.innerHTML = `
+                    <div class="no-products" style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-light);">
+                        <i class="fas fa-box-open" style="font-size: 3rem; margin-bottom: 20px; opacity: 0.3;"></i>
+                        <h3>No products found</h3>
+                        <p>Check back soon for new additions to our collection.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            filteredProducts.forEach((product, index) => {
+                const productHTML = `
+                    <div class="product-card visible" style="transition-delay: ${index * 0.1}s">
+                        ${product.badge ? `<div class="product-badge">${product.badge}</div>` : ''}
+                        <div class="product-image-wrapper">
+                            <img src="${product.image_url}" alt="${product.name}" class="product-image" onerror="this.src='https://i.imgur.com/Y4b8AxE.png'">
+                            <div class="product-overlay">
+                                <div class="product-overlay-btns">
+                                    <a href="#" class="overlay-btn overlay-btn-primary whatsapp-action">
+                                        <i class="fab fa-whatsapp"></i> Inquire
+                                    </a>
+                                    <button class="overlay-btn overlay-btn-secondary" onclick="App.viewProduct(${product.id})">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
                                 </div>
                             </div>
-                            <div class="product-info">
-                                <div class="product-category">${this.getCategoryLabel(product.category)}</div>
-                                <h3 class="product-title">${product.name}</h3>
-                                <p class="product-desc">${product.description}</p>
-                            </div>
                         </div>
-                    `;
-                    grid.innerHTML += productHTML;
+                        <div class="product-info">
+                            <div class="product-category">${this.getCategoryLabel(product.category)}</div>
+                            <h3 class="product-title">${product.name}</h3>
+                            <p class="product-desc">${product.description}</p>
+                        </div>
+                    </div>
+                `;
+                grid.innerHTML += productHTML;
+            });
+        },
+
+        // Get category label
+        getCategoryLabel: function(category) {
+            const labels = {
+                'living': 'Living Room',
+                'bedroom': 'Bedroom',
+                'dining': 'Dining Room',
+                'office': 'Office'
+            };
+            return labels[category] || category;
+        },
+
+        // View product details
+        viewProduct: function(id) {
+            const product = this.products.find(p => p.id === id);
+            if (product) {
+                this.showMessage(`Viewing: ${product.name}<br><br>${product.description}<br><br>Category: ${this.getCategoryLabel(product.category)}`, 'info');
+            }
+        },
+
+        // Setup event listeners
+        setupEventListeners: function() {
+            // Filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const filter = e.target.dataset.filter;
+                    this.setFilter(filter);
                 });
-            },
+            });
 
-            // Get category label
-            getCategoryLabel: function(category) {
-                const labels = {
-                    'living': 'Living Room',
-                    'bedroom': 'Bedroom',
-                    'dining': 'Dining Room',
-                    'office': 'Office'
-                };
-                return labels[category] || category;
-            },
+            // Admin button
+            document.getElementById('adminBtn')?.addEventListener('click', () => this.showLogin());
+            document.getElementById('mobileAdminBtn')?.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.showLogin();
+                this.toggleMobileMenu();
+            });
 
-            // View product details
-            viewProduct: function(id) {
-                const product = this.products.find(p => p.id === id);
-                if (product) {
-                    alert(`Viewing: ${product.name}\n\n${product.description}\n\nCategory: ${this.getCategoryLabel(product.category)}`);
-                }
-            },
+            // Mobile menu
+            document.getElementById('mobileToggle')?.addEventListener('click', () => this.toggleMobileMenu());
+            document.getElementById('mobileMenuClose')?.addEventListener('click', () => this.toggleMobileMenu());
+            document.querySelectorAll('.mobile-link').forEach(link => {
+                link.addEventListener('click', () => this.toggleMobileMenu());
+            });
 
-            // Setup event listeners
-            setupEventListeners: function() {
-                // Filter buttons
-                document.querySelectorAll('.filter-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        const filter = e.target.dataset.filter;
-                        this.setFilter(filter);
-                    });
-                });
-
-                // Admin button
-                document.getElementById('adminBtn')?.addEventListener('click', () => this.showLogin());
-                document.getElementById('mobileAdminBtn')?.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    this.showLogin();
-                    this.toggleMobileMenu();
-                });
-
-                // Mobile menu
-                document.getElementById('mobileToggle')?.addEventListener('click', () => this.toggleMobileMenu());
-                document.getElementById('mobileMenuClose')?.addEventListener('click', () => this.toggleMobileMenu());
-                document.querySelectorAll('.mobile-link').forEach(link => {
-                    link.addEventListener('click', () => this.toggleMobileMenu());
-                });
-
-                // Contact form
-                document.getElementById('contactForm')?.addEventListener('submit', (e) => {
+            // Contact form
+            const contactForm = document.getElementById('contactForm');
+            if (contactForm) {
+                contactForm.addEventListener('submit', (e) => {
                     e.preventDefault();
                     this.handleContactForm();
                 });
+            }
 
-                // Scroll to top
-                document.getElementById('scrollTop')?.addEventListener('click', () => {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                });
+            // Scroll to top
+            document.getElementById('scrollTop')?.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
 
-                // Navbar scroll effect
-                window.addEventListener('scroll', () => {
-                    const navbar = document.getElementById('navbar');
-                    const scrollTop = document.getElementById('scrollTop');
-                    
-                    if (window.scrollY > 100) {
-                        navbar?.classList.add('scrolled');
-                        scrollTop?.classList.add('visible');
-                    } else {
-                        navbar?.classList.remove('scrolled');
-                        scrollTop?.classList.remove('visible');
+            // Navbar scroll effect
+            window.addEventListener('scroll', () => {
+                const navbar = document.getElementById('navbar');
+                const scrollTop = document.getElementById('scrollTop');
+                
+                if (window.scrollY > 100) {
+                    navbar?.classList.add('scrolled');
+                    scrollTop?.classList.add('visible');
+                } else {
+                    navbar?.classList.remove('scrolled');
+                    scrollTop?.classList.remove('visible');
+                }
+            });
+
+            // Modal close on background click
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        this.closeModals();
                     }
                 });
+            });
 
-                // Modal close on background click
-                document.querySelectorAll('.modal').forEach(modal => {
-                    modal.addEventListener('click', (e) => {
-                        if (e.target === modal) {
-                            this.closeModals();
-                        }
-                    });
-                });
-
-                // Newsletter subscription
-                document.querySelector('.footer-newsletter button')?.addEventListener('click', (e) => {
+            // Newsletter subscription
+            const newsletterBtn = document.querySelector('.footer-newsletter button');
+            if (newsletterBtn) {
+                newsletterBtn.addEventListener('click', (e) => {
                     e.preventDefault();
                     this.handleNewsletterSubscription();
                 });
-            },
+            }
+            
+            // Check if already logged in
+            if (localStorage.getItem('qilan_admin_logged_in') === 'true') {
+                this.showAdminDashboard();
+            }
+        },
 
-            // Set filter and update products
-            setFilter: function(filter) {
-                this.currentFilter = filter;
-                
-                // Update active button
-                document.querySelectorAll('.filter-btn').forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.filter === filter);
-                });
-                
-                // Re-render products
-                this.renderProducts();
-            },
+        // Set filter and update products
+        setFilter: function(filter) {
+            this.currentFilter = filter;
+            
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.filter === filter);
+            });
+            
+            this.renderProducts();
+        },
 
-            // Toggle mobile menu
-            toggleMobileMenu: function() {
-                const menu = document.getElementById('mobileMenu');
-                const toggle = document.getElementById('mobileToggle');
-                
-                menu?.classList.toggle('active');
-                toggle?.classList.toggle('active');
-                
-                // Animate links
-                document.querySelectorAll('.mobile-link').forEach((link, index) => {
-                    link.style.transitionDelay = `${index * 0.1}s`;
-                });
-            },
+        // Toggle mobile menu
+        toggleMobileMenu: function() {
+            const menu = document.getElementById('mobileMenu');
+            const toggle = document.getElementById('mobileToggle');
+            
+            menu?.classList.toggle('active');
+            toggle?.classList.toggle('active');
+        },
 
-            // Show login modal
-            showLogin: function() {
-                document.getElementById('loginModal')?.classList.add('active');
-            },
+        // Show login modal
+        showLogin: function() {
+            document.getElementById('loginModal')?.classList.add('active');
+        },
 
-            // Close all modals
-            closeModals: function() {
-                document.querySelectorAll('.modal').forEach(modal => {
-                    modal.classList.remove('active');
-                });
-            },
+        // Close all modals
+        closeModals: function() {
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.classList.remove('active');
+            });
+        },
 
-            // Handle admin login
-            login: function() {
-                const email = document.getElementById('adminEmail').value;
-                const password = document.getElementById('adminPassword').value;
-                
-                if (email === this.adminEmail && password === this.adminPassword) {
-                    // Save login state
-                    localStorage.setItem('qilan_admin_logged_in', 'true');
-                    
-                    // Show admin dashboard
-                    document.getElementById('adminDashboard')?.classList.add('active');
-                    this.closeModals();
-                    
-                    // Load admin data
-                    this.loadAdminData();
-                    
-                    // Show success message
-                    this.showAdminMessage('Login successful! Welcome to the admin dashboard.', 'success');
-                } else {
-                    this.showAdminMessage('Invalid credentials. Please try again.', 'error', 'loginModal');
-                }
-            },
+        // Handle admin login
+        login: function() {
+            const email = document.getElementById('adminEmail').value;
+            const password = document.getElementById('adminPassword').value;
+            
+            if (email === this.adminEmail && password === this.adminPassword) {
+                localStorage.setItem('qilan_admin_logged_in', 'true');
+                this.showAdminDashboard();
+                this.closeModals();
+                this.showMessage('Login successful! Welcome to the admin dashboard.', 'success');
+            } else {
+                this.showMessage('Invalid credentials. Please try again.', 'error');
+            }
+        },
 
-            // Load admin data
-            loadAdminData: async function() {
-                await this.loadSubmissions();
+        // Show admin dashboard
+        showAdminDashboard: function() {
+            document.getElementById('adminDashboard')?.classList.add('active');
+            this.loadAdminData();
+        },
+
+        // Load admin data
+        loadAdminData: async function() {
+            try {
+                await Promise.all([
+                    this.loadSubmissions(),
+                    this.loadProducts()
+                ]);
                 this.renderAdminProducts();
                 this.renderSubmissionsTable();
                 this.updateStatistics();
-            },
+            } catch (error) {
+                console.error('Error loading admin data:', error);
+                this.showAdminMessage('Error loading admin data.', 'error');
+            }
+        },
 
-            // Logout admin
-            logout: function() {
-                localStorage.removeItem('qilan_admin_logged_in');
-                document.getElementById('adminDashboard')?.classList.remove('active');
-                document.getElementById('adminPassword').value = '';
-                this.showMessage('You have been logged out.', 'success');
-            },
+        // Logout admin
+        logout: function() {
+            localStorage.removeItem('qilan_admin_logged_in');
+            document.getElementById('adminDashboard')?.classList.remove('active');
+            this.showMessage('You have been logged out.', 'success');
+        },
 
-            // Save contact settings to Supabase
-            saveContactSettings: async function() {
-                const phone = document.getElementById('adminPhoneDisplay').value;
-                const whatsapp = document.getElementById('adminWhatsApp').value;
-                const email = document.getElementById('adminEmailAddr').value;
-                const location = document.getElementById('adminLocation').value;
+        // Save contact settings
+        saveContactSettings: async function() {
+            const phone = document.getElementById('adminPhoneDisplay').value;
+            const whatsapp = document.getElementById('adminWhatsApp').value;
+            const email = document.getElementById('adminEmailAddr').value;
+            const location = document.getElementById('adminLocation').value;
+            
+            if (!phone || !email || !whatsapp || !location) {
+                this.showAdminMessage('Please fill in all contact fields.', 'error');
+                return;
+            }
+            
+            const contactInfo = { phone, whatsapp, email, location };
+            
+            try {
+                // Upsert contact info
+                const { error } = await this.supabase
+                    .from('settings')
+                    .upsert({ 
+                        key: 'contact_info',
+                        value: JSON.stringify(contactInfo),
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'key' });
                 
-                const contactInfo = {
-                    phone,
-                    whatsapp,
-                    email,
-                    location
-                };
+                if (error) throw error;
                 
-                try {
-                    // Check if contact info exists
-                    const { data: existing } = await this.supabase
-                        .from('settings')
-                        .select('id')
-                        .eq('key', 'contact_info')
-                        .single();
-                    
-                    let error;
-                    
-                    if (existing) {
-                        // Update existing
-                        const { error: updateError } = await this.supabase
-                            .from('settings')
-                            .update({ value: JSON.stringify(contactInfo) })
-                            .eq('key', 'contact_info');
-                        error = updateError;
-                    } else {
-                        // Insert new
-                        const { error: insertError } = await this.supabase
-                            .from('settings')
-                            .insert([{ 
-                                key: 'contact_info', 
-                                value: JSON.stringify(contactInfo) 
-                            }]);
-                        error = insertError;
-                    }
-                    
-                    if (error) {
-                        console.error('Error saving contact info:', error);
-                        this.showAdminMessage('Error saving contact settings.', 'error');
-                        return;
-                    }
-                    
-                    // Update display
-                    this.updateContactDisplay(contactInfo);
-                    
-                    this.showAdminMessage('Contact settings saved successfully!', 'success');
-                } catch (error) {
-                    console.error('Error in saveContactSettings:', error);
-                    this.showAdminMessage('Error saving contact settings.', 'error');
-                }
-            },
+                this.updateContactDisplay(contactInfo);
+                this.showAdminMessage('✅ Contact settings saved!', 'success');
+                
+            } catch (error) {
+                console.error('Error saving contact settings:', error);
+                this.showAdminMessage('Error saving contact settings.', 'error');
+            }
+        },
 
-            // Add new product to Supabase
-            addProduct: async function() {
-                const name = document.getElementById('newProdName').value;
-                const category = document.getElementById('newProdCat').value;
-                const image_url = document.getElementById('newProdImg').value;
-                const badge = document.getElementById('newProdBadge').value;
-                const description = document.getElementById('newProdDesc').value;
+        // Add new product
+        addProduct: async function() {
+            const name = document.getElementById('newProdName').value;
+            const category = document.getElementById('newProdCat').value;
+            const image_url = document.getElementById('newProdImg').value;
+            const badge = document.getElementById('newProdBadge').value;
+            const description = document.getElementById('newProdDesc').value;
+            
+            if (!name || !image_url || !description) {
+                this.showAdminMessage('Please fill in all required fields.', 'error');
+                return;
+            }
+            
+            try {
+                const { data, error } = await this.supabase
+                    .from('products')
+                    .insert([{
+                        name,
+                        category,
+                        image_url,
+                        badge: badge || null,
+                        description,
+                        created_at: new Date().toISOString()
+                    }])
+                    .select()
+                    .single();
                 
-                if (!name || !image_url || !description) {
-                    this.showAdminMessage('Please fill in all required fields.', 'error');
-                    return;
-                }
+                if (error) throw error;
                 
-                try {
-                    const { data, error } = await this.supabase
-                        .from('products')
-                        .insert([{
-                            name,
-                            category,
-                            image_url,
-                            badge,
-                            description,
-                            created_at: new Date().toISOString()
-                        }])
-                        .select()
-                        .single();
-                    
-                    if (error) {
-                        console.error('Error adding product:', error);
-                        this.showAdminMessage('Error adding product.', 'error');
-                        return;
-                    }
-                    
-                    // Add to local products array
-                    this.products.unshift(data);
-                    
-                    // Clear form
-                    document.getElementById('newProdName').value = '';
-                    document.getElementById('newProdImg').value = '';
-                    document.getElementById('newProdDesc').value = '';
-                    document.getElementById('newProdBadge').value = '';
-                    
-                    // Update displays
-                    this.renderProducts();
-                    this.renderAdminProducts();
+                // Clear form
+                document.getElementById('newProdName').value = '';
+                document.getElementById('newProdImg').value = '';
+                document.getElementById('newProdDesc').value = '';
+                document.getElementById('newProdBadge').value = '';
+                
+                // Refresh products
+                await this.loadProducts();
+                this.renderAdminProducts();
+                this.updateStatistics();
+                
+                this.showAdminMessage('✅ Product added successfully!', 'success');
+                
+            } catch (error) {
+                console.error('Error adding product:', error);
+                this.showAdminMessage('Error adding product.', 'error');
+            }
+        },
+
+        // Delete product
+        deleteProduct: async function(id) {
+            if (!confirm('Are you sure you want to delete this product?')) return;
+            
+            try {
+                const { error } = await this.supabase
+                    .from('products')
+                    .delete()
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                // Refresh products
+                this.products = this.products.filter(p => p.id !== id);
+                this.renderProducts();
+                this.renderAdminProducts();
+                this.updateStatistics();
+                
+                this.showAdminMessage('✅ Product deleted!', 'success');
+                
+            } catch (error) {
+                console.error('Error deleting product:', error);
+                this.showAdminMessage('Error deleting product.', 'error');
+            }
+        },
+
+        // Load submissions
+        loadSubmissions: async function() {
+            try {
+                const { data, error } = await this.supabase
+                    .from('contact_submissions')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                this.submissions = data || [];
+                
+            } catch (error) {
+                console.error('Error loading submissions:', error);
+                this.submissions = [];
+            }
+        },
+
+        // Handle contact form
+        handleContactForm: async function() {
+            const form = document.getElementById('contactForm');
+            const formData = new FormData(form);
+            
+            const submission = {
+                first_name: formData.get('firstName'),
+                last_name: formData.get('lastName'),
+                email: formData.get('email'),
+                phone: formData.get('phone'),
+                interest: formData.get('interest'),
+                message: formData.get('message'),
+                created_at: new Date().toISOString()
+            };
+            
+            try {
+                const { error } = await this.supabase
+                    .from('contact_submissions')
+                    .insert([submission]);
+                
+                if (error) throw error;
+                
+                // Update submissions list if admin is viewing
+                if (localStorage.getItem('qilan_admin_logged_in') === 'true') {
+                    this.submissions.unshift(submission);
+                    this.renderSubmissionsTable();
                     this.updateStatistics();
-                    
-                    this.showAdminMessage('Product added successfully!', 'success');
-                } catch (error) {
-                    console.error('Error in addProduct:', error);
-                    this.showAdminMessage('Error adding product.', 'error');
                 }
-            },
+                
+                this.showMessage('✅ Thank you! We will contact you soon.', 'success');
+                form.reset();
+                
+            } catch (error) {
+                console.error('Error submitting form:', error);
+                this.showMessage('Error submitting form. Please try again.', 'error');
+            }
+        },
 
-            // Delete product from Supabase
-            deleteProduct: async function(id) {
-                if (!confirm('Are you sure you want to delete this product?')) {
-                    return;
-                }
+        // Handle newsletter subscription
+        handleNewsletterSubscription: async function() {
+            const emailInput = document.querySelector('.footer-newsletter input');
+            const email = emailInput.value.trim();
+            
+            if (!this.validateEmail(email)) {
+                this.showMessage('Please enter a valid email.', 'error');
+                return;
+            }
+            
+            try {
+                const { error } = await this.supabase
+                    .from('newsletter_subscribers')
+                    .insert([{ email }]);
                 
-                try {
-                    const { error } = await this.supabase
-                        .from('products')
-                        .delete()
-                        .eq('id', id);
-                    
-                    if (error) {
-                        console.error('Error deleting product:', error);
-                        this.showAdminMessage('Error deleting product.', 'error');
-                        return;
-                    }
-                    
-                    // Remove from local products array
-                    this.products = this.products.filter(p => p.id !== id);
-                    
-                    // Update displays
-                    this.renderProducts();
-                    this.renderAdminProducts();
-                    this.updateStatistics();
-                    
-                    this.showAdminMessage('Product deleted successfully!', 'success');
-                } catch (error) {
-                    console.error('Error in deleteProduct:', error);
-                    this.showAdminMessage('Error deleting product.', 'error');
-                }
-            },
-
-            // Load submissions from Supabase
-            loadSubmissions: async function() {
-                try {
-                    const { data, error } = await this.supabase
-                        .from('contact_submissions')
-                        .select('*')
-                        .order('created_at', { ascending: false });
-                    
-                    if (error) {
-                        console.error('Error loading submissions:', error);
-                        return;
-                    }
-                    
-                    this.submissions = data || [];
-                    console.log(`Loaded ${this.submissions.length} submissions`);
-                } catch (error) {
-                    console.error('Error in loadSubmissions:', error);
-                }
-            },
-
-            // Handle contact form submission
-            handleContactForm: async function() {
-                const form = document.getElementById('contactForm');
-                const formData = new FormData(form);
-                
-                // Basic validation
-                let isValid = true;
-                form.querySelectorAll('[required]').forEach(input => {
-                    if (!input.value) {
-                        isValid = false;
-                        input.style.borderColor = '#ef4444';
-                    } else {
-                        input.style.borderColor = '';
-                    }
-                });
-                
-                if (!isValid) {
-                    this.showMessage('Please fill in all required fields.', 'error');
-                    return;
-                }
-                
-                const submission = {
-                    first_name: formData.get('firstName'),
-                    last_name: formData.get('lastName'),
-                    email: formData.get('email'),
-                    phone: formData.get('phone'),
-                    interest: formData.get('interest'),
-                    message: formData.get('message'),
-                    created_at: new Date().toISOString()
-                };
-                
-                try {
-                    // Save to Supabase
-                    const { data, error } = await this.supabase
-                        .from('contact_submissions')
-                        .insert([submission]);
-                    
-                    if (error) {
-                        console.error('Error saving submission:', error);
-                        this.showMessage('Error submitting form. Please try again.', 'error');
-                        return;
-                    }
-                    
-                    // Add to local submissions array if admin is logged in
-                    if (localStorage.getItem('qilan_admin_logged_in') === 'true') {
-                        this.submissions.unshift(submission);
-                        this.renderSubmissionsTable();
-                        this.updateStatistics();
-                    }
-                    
-                    this.showMessage('Thank you for your message! We will contact you within 24 hours.', 'success');
-                    form.reset();
-                } catch (error) {
-                    console.error('Error in handleContactForm:', error);
-                    this.showMessage('Error submitting form. Please try again.', 'error');
-                }
-            },
-
-            // Handle newsletter subscription
-            handleNewsletterSubscription: async function() {
-                const emailInput = document.querySelector('.footer-newsletter input');
-                const email = emailInput.value;
-                
-                if (!email || !this.validateEmail(email)) {
-                    this.showMessage('Please enter a valid email address.', 'error');
-                    return;
-                }
-                
-                try {
-                    // Save to Supabase
-                    const { error } = await this.supabase
-                        .from('newsletter_subscribers')
-                        .insert([{
-                            email: email,
-                            created_at: new Date().toISOString()
-                        }]);
-                    
-                    if (error) {
-                        // Check if it's a duplicate error
-                        if (error.code === '23505') { // Unique violation
-                            this.showMessage('You are already subscribed!', 'info');
-                        } else {
-                            console.error('Error saving subscription:', error);
-                            this.showMessage('Error subscribing. Please try again.', 'error');
-                        }
-                        return;
-                    }
-                    
-                    this.showMessage('Thank you for subscribing to our newsletter!', 'success');
+                if (error && error.code === '23505') {
+                    this.showMessage('You are already subscribed!', 'info');
+                } else if (error) {
+                    throw error;
+                } else {
+                    this.showMessage('✅ Thank you for subscribing!', 'success');
                     emailInput.value = '';
-                } catch (error) {
-                    console.error('Error in handleNewsletterSubscription:', error);
-                    this.showMessage('Error subscribing. Please try again.', 'error');
                 }
-            },
+                
+            } catch (error) {
+                console.error('Error subscribing:', error);
+                this.showMessage('Error subscribing. Please try again.', 'error');
+            }
+        },
 
-            // Render products in admin panel
-            renderAdminProducts: function() {
-                const container = document.getElementById('adminProductsList');
-                if (!container) return;
-                
-                container.innerHTML = '';
-                
-                if (this.products.length === 0) {
-                    container.innerHTML = `
-                        <div style="text-align: center; padding: 40px; color: var(--text-light);">
-                            <i class="fas fa-box-open" style="font-size: 2rem; margin-bottom: 10px; opacity: 0.3;"></i>
-                            <p>No products yet. Add your first product above.</p>
+        // Render admin products
+        renderAdminProducts: function() {
+            const container = document.getElementById('adminProductsList');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            this.products.forEach(product => {
+                const productHTML = `
+                    <div class="admin-product-item">
+                        <img src="${product.image_url}" alt="${product.name}">
+                        <div class="admin-product-info">
+                            <h4>${product.name}</h4>
+                            <span>${this.getCategoryLabel(product.category)}</span>
+                            <p>${product.description.substring(0, 80)}...</p>
                         </div>
-                    `;
-                    return;
-                }
-                
-                this.products.forEach(product => {
-                    const productHTML = `
-                        <div class="admin-product-item">
-                            <img src="${product.image_url}" alt="${product.name}">
-                            <div class="admin-product-info">
-                                <h4>${product.name}</h4>
-                                <span>${this.getCategoryLabel(product.category)}</span>
-                                <p>${product.description.substring(0, 80)}...</p>
-                            </div>
-                            <div class="admin-product-actions">
-                                <button class="admin-btn admin-btn-danger" onclick="App.deleteProduct(${product.id})">
-                                    <i class="fas fa-trash"></i> Delete
-                                </button>
-                            </div>
+                        <div class="admin-product-actions">
+                            <button class="admin-btn admin-btn-danger" onclick="App.deleteProduct(${product.id})">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
                         </div>
-                    `;
-                    container.innerHTML += productHTML;
-                });
-            },
-
-            // Render submissions table
-            renderSubmissionsTable: function() {
-                const container = document.getElementById('submissionsTableContainer');
-                if (!container) return;
-                
-                if (this.submissions.length === 0) {
-                    container.innerHTML = `
-                        <div style="text-align: center; padding: 40px; color: var(--text-light);">
-                            <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 10px; opacity: 0.3;"></i>
-                            <p>No submissions yet.</p>
-                        </div>
-                    `;
-                    return;
-                }
-                
-                let tableHTML = `
-                    <table class="submissions-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Phone</th>
-                                <th>Interest</th>
-                                <th>Message</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                    </div>
                 `;
-                
-                this.submissions.forEach(submission => {
-                    const date = new Date(submission.created_at).toLocaleDateString();
-                    tableHTML += `
+                container.innerHTML += productHTML;
+            });
+        },
+
+        // Render submissions table
+        renderSubmissionsTable: function() {
+            const container = document.getElementById('submissionsTableContainer');
+            if (!container) return;
+            
+            if (this.submissions.length === 0) {
+                container.innerHTML = '<p>No submissions yet.</p>';
+                return;
+            }
+            
+            let tableHTML = `
+                <table class="submissions-table">
+                    <thead>
                         <tr>
-                            <td>${date}</td>
-                            <td>${submission.first_name} ${submission.last_name}</td>
-                            <td>${submission.email}</td>
-                            <td>${submission.phone || 'N/A'}</td>
-                            <td>${submission.interest || 'N/A'}</td>
-                            <td class="message-cell" onclick="this.classList.toggle('expanded')" title="Click to expand">
-                                ${submission.message || 'No message'}
-                            </td>
+                            <th>Date</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Interest</th>
+                            <th>Message</th>
                         </tr>
-                    `;
-                });
-                
+                    </thead>
+                    <tbody>
+            `;
+            
+            this.submissions.forEach(submission => {
+                const date = new Date(submission.created_at).toLocaleDateString();
                 tableHTML += `
-                        </tbody>
-                    </table>
+                    <tr>
+                        <td>${date}</td>
+                        <td>${submission.first_name} ${submission.last_name}</td>
+                        <td>${submission.email}</td>
+                        <td>${submission.phone || 'N/A'}</td>
+                        <td>${submission.interest || 'N/A'}</td>
+                        <td class="message-cell" onclick="this.classList.toggle('expanded')">
+                            ${submission.message || 'No message'}
+                        </td>
+                    </tr>
                 `;
-                
-                container.innerHTML = tableHTML;
-            },
+            });
+            
+            tableHTML += '</tbody></table>';
+            container.innerHTML = tableHTML;
+        },
 
-            // Update statistics
-            updateStatistics: function() {
-                // Total products
-                const totalProductsEl = document.getElementById('totalProducts');
-                if (totalProductsEl) totalProductsEl.textContent = this.products.length;
-                
-                // Total submissions
-                const totalSubmissionsEl = document.getElementById('totalSubmissions');
-                if (totalSubmissionsEl) totalSubmissionsEl.textContent = this.submissions.length;
-                
-                // Category statistics
-                const categoryStatsEl = document.getElementById('categoryStats');
-                if (categoryStatsEl) {
-                    const categoryCounts = {};
-                    this.products.forEach(product => {
-                        categoryCounts[product.category] = (categoryCounts[product.category] || 0) + 1;
-                    });
-                    
-                    let categoryHTML = '';
-                    for (const [category, count] of Object.entries(categoryCounts)) {
-                        categoryHTML += `<div>${this.getCategoryLabel(category)}: ${count}</div>`;
-                    }
-                    categoryStatsEl.innerHTML = categoryHTML || 'No products';
-                }
-                
-                // Recent activity
-                const recentActivityEl = document.getElementById('recentActivity');
-                if (recentActivityEl) {
-                    const recentProducts = this.products.slice(0, 3);
-                    let activityHTML = '';
-                    recentProducts.forEach(product => {
-                        activityHTML += `<div>• ${product.name}</div>`;
-                    });
-                    recentActivityEl.innerHTML = activityHTML || 'No recent activity';
-                }
-            },
-
-            // Show admin section
-            showAdminSection: function(section) {
-                // Update active nav button
-                document.querySelectorAll('.admin-nav-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                event.target.classList.add('active');
-                
-                // Hide all sections
-                document.querySelectorAll('.admin-content-section').forEach(section => {
-                    section.classList.remove('active');
+        // Update statistics
+        updateStatistics: function() {
+            const totalProductsEl = document.getElementById('totalProducts');
+            const totalSubmissionsEl = document.getElementById('totalSubmissions');
+            const categoryStatsEl = document.getElementById('categoryStats');
+            
+            if (totalProductsEl) totalProductsEl.textContent = this.products.length;
+            if (totalSubmissionsEl) totalSubmissionsEl.textContent = this.submissions.length;
+            
+            if (categoryStatsEl) {
+                const categoryCounts = {};
+                this.products.forEach(p => {
+                    categoryCounts[p.category] = (categoryCounts[p.category] || 0) + 1;
                 });
                 
-                // Show selected section
-                document.getElementById(`${section}Section`)?.classList.add('active');
+                let html = '';
+                Object.entries(categoryCounts).forEach(([cat, count]) => {
+                    html += `<div>${this.getCategoryLabel(cat)}: ${count}</div>`;
+                });
+                categoryStatsEl.innerHTML = html || '<div>No products</div>';
+            }
+        },
+
+        // Show admin section
+        showAdminSection: function(section) {
+            document.querySelectorAll('.admin-nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            document.querySelectorAll('.admin-content-section').forEach(sec => {
+                sec.classList.remove('active');
+            });
+            
+            const targetSection = document.getElementById(`${section}Section`);
+            if (targetSection) {
+                targetSection.classList.add('active');
                 
-                // Refresh data if needed
                 if (section === 'submissions') {
                     this.renderSubmissionsTable();
                 } else if (section === 'stats') {
                     this.updateStatistics();
                 }
-            },
-
-            // Show admin message
-            showAdminMessage: function(message, type, containerId = 'adminStatusMessage') {
-                const container = document.getElementById(containerId);
-                if (!container) return;
-                
-                container.innerHTML = `
-                    <div class="status-message status-${type}">
-                        ${message}
-                    </div>
-                `;
-                
-                setTimeout(() => {
-                    container.innerHTML = '';
-                }, 5000);
-            },
-
-            // Show message
-            showMessage: function(message, type) {
-                alert(message);
-            },
-
-            // Setup animations with Intersection Observer
-            setupAnimations: function() {
-                const observerOptions = {
-                    threshold: 0.1,
-                    rootMargin: '0px 0px -50px 0px'
-                };
-                
-                const observer = new IntersectionObserver((entries) => {
-                    entries.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            entry.target.classList.add('visible');
-                        }
-                    });
-                }, observerOptions);
-                
-                // Observe product cards
-                document.querySelectorAll('.product-card').forEach(card => {
-                    observer.observe(card);
-                });
-            },
-
-            // Setup scroll behavior
-            setupScroll: function() {
-                // Smooth scroll for anchor links
-                document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-                    anchor.addEventListener('click', function(e) {
-                        const href = this.getAttribute('href');
-                        if (href === '#') return;
-                        
-                        e.preventDefault();
-                        const target = document.querySelector(href);
-                        if (target) {
-                            target.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'start'
-                            });
-                        }
-                    });
-                });
-            },
-
-            // Email validation
-            validateEmail: function(email) {
-                const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                return re.test(email);
             }
-        };
+        },
 
-        // Initialize app when DOM is loaded
-        document.addEventListener('DOMContentLoaded', () => App.init());
-    </script>
+        // Show admin message
+        showAdminMessage: function(message, type) {
+            const container = document.getElementById('adminStatusMessage');
+            if (!container) return;
+            
+            container.innerHTML = `
+                <div class="status-message status-${type}">
+                    ${message}
+                </div>
+            `;
+            
+            setTimeout(() => container.innerHTML = '', 5000);
+        },
+
+        // Show message
+        showMessage: function(message, type) {
+            const colors = {
+                success: '#10b981',
+                error: '#ef4444',
+                warning: '#f59e0b',
+                info: '#3b82f6'
+            };
+            
+            const icon = {
+                success: 'fa-check-circle',
+                error: 'fa-exclamation-circle',
+                warning: 'fa-exclamation-triangle',
+                info: 'fa-info-circle'
+            }[type];
+            
+            const notification = document.createElement('div');
+            notification.innerHTML = `
+                <div style="position:fixed; top:20px; right:20px; background:${colors[type]}; color:white; padding:12px 20px; border-radius:5px; z-index:10000; box-shadow:0 5px 15px rgba(0,0,0,0.2); display:flex; align-items:center; gap:10px; max-width:400px;">
+                    <i class="fas ${icon}"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 5000);
+        },
+
+        // Setup animations
+        setupAnimations: function() {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                    }
+                });
+            }, { threshold: 0.1 });
+            
+            document.querySelectorAll('.product-card').forEach(card => {
+                observer.observe(card);
+            });
+        },
+
+        // Setup scroll behavior
+        setupScroll: function() {
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    const href = this.getAttribute('href');
+                    if (href === '#') return;
+                    
+                    e.preventDefault();
+                    const target = document.querySelector(href);
+                    if (target) {
+                        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                });
+            });
+        },
+
+        // Email validation
+        validateEmail: function(email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        }
+    };
+
+    // Initialize app
+    document.addEventListener('DOMContentLoaded', () => App.init());
+</script>
 </body>
 </html>
