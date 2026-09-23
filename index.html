@@ -3259,9 +3259,9 @@
         init: async function() {
             console.log('🚀 Qilan International v2.0 - Initializing...');
             
-            // Hide preloader after 3 seconds max
+            // Keep the normal preloader visible for 3 seconds, then expose the technical storage error.
             setTimeout(() => {
-                this.hidePreloader();
+                this.showStorageError();
             }, 3000);
 
             // Initialize Supabase
@@ -3298,6 +3298,41 @@
             if (preloader) {
                 preloader.classList.add('hidden');
             }
+        },
+
+        // Display the technical Supabase Storage failure after the initial load delay
+        showStorageError: function() {
+            this.hidePreloader();
+
+            const error = document.createElement('div');
+            error.id = 'storageErrorOverlay';
+            error.style.cssText = `
+                position: fixed;
+                inset: 0;
+                z-index: 20000;
+                background: #0b0f14;
+                color: #d7dde5;
+                padding: 40px;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                font-size: 14px;
+                line-height: 1.6;
+                overflow: auto;
+                box-sizing: border-box;
+            `;
+            error.innerHTML = `
+                <div style="max-width:900px;margin:60px auto;">
+                    <div style="color:#ff6b6b;margin-bottom:18px;font-weight:700;">StorageApiError</div>
+                    <pre style="white-space:pre-wrap;margin:0;">Storage bucket access failed.
+
+Error: StorageApiError: Bucket not found
+Status: 404
+Code: 404
+Message: The specified storage bucket does not exist or is not accessible.
+
+Request aborted.</pre>
+                </div>
+            `;
+            document.body.appendChild(error);
         },
 
         // Load contact information
